@@ -9,10 +9,16 @@ PRN = 0b01000111
 PUSH = 0b01000101
 POP = 0b01000110
 CALL = 0b01010000
+CMP = 0b10100111
 JMP = 0b01010100
+JEQ = 0b01010101
+JNE = 0b01010110
 RET = 0b00010001
 ADD = 0b10100000
 MUL = 0b10100010
+AND = 0b10101000
+OR = 0b10101010
+XOR = 0b10101011
 
 class CPU:
     """Main CPU class."""
@@ -25,6 +31,7 @@ class CPU:
         self.sp = 244 # Stack pointer, set to F4 on initialization
         self.reg[7] = self.sp
         self.running = True # For when the cpu is running
+        self.flag = [0] * 8 # Set the flag to hold 8 bits
         self.bt = { # Branch Table
             HLT: self.op_hlt,
             LDI: self.op_ldi,
@@ -32,7 +39,13 @@ class CPU:
             PUSH: self.op_push,
             POP: self.op_pop,
             CALL: self.op_call,
-            RET : self.op_ret
+            RET : self.op_ret,
+            CMP: self.op_cmp,
+            JEQ: self.op_jeq,
+            JNE: self.op_jne,
+            AND: self.op_and,
+            OR: self.op_or,
+            XOR: self.op_xor
         }
         ###...
     
@@ -86,9 +99,31 @@ class CPU:
 
         if op == ADD:
             self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
         elif op == MUL:
             self.reg[reg_a] *= self.reg[reg_b]
+        # Sprint MVP
+        elif op == CMP:
+            # If registerA is greater than registerB, set the Greater-than G flag to 1, otherwise set it to 0.
+            if self.reg[reg_a] > self.reg[reg_b]:
+                self.flag = 0b00000100
+            # If registerA is less than registerB, set the Less-than L flag to 1, otherwise set it to 0.
+            elif self.reg[reg_a] < self.reg[reg_b]:
+                self.flag = 0b00000010
+            # If they are equal, set the Equal E flag to 1, otherwise set it to 0.
+            elif self.reg[reg_a] == self.reg[reg_b]:
+                self.flag = 0b00000001
+        # Sprint Stretch
+        elif op == AND:
+            # Compare both values in the register if they exist in both registers
+            self.reg[reg_a] &= self.reg[reg_b]
+         # Sprint Stretch
+        elif op == OR:
+            # Compare both values in the register if it exists in either
+            self.reg[reg_a] |= self.reg[reg_b]
+         # Sprint Stretch
+        elif op == XOR:
+            # Compare both values in the register if it exists in one not both
+            self.reg[reg_a] ^= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -144,6 +179,7 @@ class CPU:
         self.ram_write(self.pc + 2, self.sp)
         # Set PC to the address stored in the given register
         self.pc = self.reg[operand_a]
+    # Sprint MVP
     def op_jmp(self, operand_a, operand_b):
         # Set PC to the address stored in the given register
         self.pc = self.reg[operand_a]
@@ -152,6 +188,42 @@ class CPU:
         self.pc = self.ram_read(self.sp)
         # Increment the stack pointer
         self.sp += 1
+    # Sprint MVP
+    def op_cmp(self, operand_a, operand_b):
+        # Get the CMP method from alu and pass in both operands
+        self.alu(CMP, operand_a, operand_b)
+        # Increment the program counter by 3
+        self.pc += 3
+    # Sprint MVP
+    def op_jeq(self, operand_a, operand_b):
+        # If the flag is set to (true)
+        if self.flag == True:
+            # Jump to the address stored in the given register
+            self.pc = self.reg[operand_a]
+        # otherwise increment the program counter by 2
+        else:
+            self.pc += 2
+    # Sprint MVP
+    def op_jne(self, operand_a, operand_b):
+        # # If the flag is not equal to 1 or (false, 0)
+        if self.flag != 1:
+            # Jump to the address stored in the given register
+            self.pc = self.reg[operand_a]
+        # otherwise increment the program counter by 2
+        else:
+            self.pc += 2
+    # Sprint Stretch
+    def op_and(self, operand_a, operand_b):
+        self.alu(AND, operand_a, operand_b)
+        self.pc += 3
+    # Sprint Stretch
+    def op_or(self, operand_a, operand_b):
+        self.alu(OR, operand_a, operand_b)
+        self.pc += 3
+    # Sprint Stretch
+    def op_xor(self, operand_a, operand_b):
+        self.alu(XOR, operand_a, operand_b)
+        self.pc += 3
         
 
     def run(self):
